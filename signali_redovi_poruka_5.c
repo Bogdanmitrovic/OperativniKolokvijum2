@@ -33,7 +33,7 @@ int main(int argc, char* argv[])
     if(pid==0)
     {
         //dete
-        int msgQueueId=msgget(QUEUE_ID,IPC_CREAT | 0666);
+        int msgQueueId=msgget(QUEUE_ID,IPC_CREAT | 0666);           // moze i jedan msgget iznad forka
         if(msgQueueId<0)
             printf("greska pri kreiranju msg queue\n");
         srand(time(0));
