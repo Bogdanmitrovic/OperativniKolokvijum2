@@ -15,7 +15,6 @@ void signal_handler(int sig_num)        // funkcija koja "handluje" signal, moze
 alarm(30);                              // salje alarm signal za 30 sekundi
 alarm(0);                               // iskljucuje postojeci alarm
 
-
 // REDOVI PORUKA
 
 #include <sys/types.h>
@@ -48,4 +47,62 @@ msgsnd(msg_queue_id, &buffer, 10, 0);   // slanje poruke kroz red poruka
 
 msgrcv(msg_queue_id, &buffer, 10, 0, 0) // citanje poruke iz reda
                                         // 10 je velicina, 0 je tip poruke koji cekas, druga 0 flag, uvek 0
-                                        
+
+msgctl(msg_queue_id, IPC_RMID, NULL);   // zatvaranje i brisanje message queue-a
+
+// DELJENA MEMORIJA (+ semafori)
+
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/sem.h>                    // za semafore, nije nuzno obavezno za deljenu memoriju ali buduci
+#include <sys/shm.h>                    // da mora da se sinhronizuje nekako, skoro uvek treba i semafori
+
+#define MEM_KEY 10004                   // kljuc deljene memorije, mora da bude isti u oba procesa
+#define SEM_KEY 10002                   // kljuc semafora, oba kljuca mogu da budu neki proizvoljan broj tako oko 10k
+
+union semun                             // obavezno za svaki semafor
+{
+  int val;
+  struct semid_ds *buf;
+  ushort *array;
+  struct seminfo * __buf;
+  void * __pad;
+};
+
+int memid = shmget(MEM_KEY, 10*sizeof(int), IPC_CREAT | 0666);
+                                        // uzima postojecu ili kreira novu deljenu memoriju za dati kljuc
+                                        // moze i samo 0666 ako sigurno vec postoji memorija za dati kljuc
+                                        // 1. parametar kljuc, 2. parametar velicina memorije koja treba da se zauzme
+                                        // ako vrati < 0 greska
+
+int* shmem = shmat(memid, NULL, 0);     // attach-uje se deljena memorija za pointer
+                                        // ukoliko cuvamo intove u deljenoj memoriji, treba int pointer
+                                        // da je recimo bio tekst (niz karaktera), bio bi char* shmem
+                                        // uvek ide mem. id i NULL, 0
+
+shmdt(shmem);                           // detach, radi se kad nam vise ne treba pristup deljenoj memoriji
+
+shmctl(memid, IPC_RMID, 0);             // uklanja deljenu memoriju
+
+int semid = semget(SEM_KEY, 1, IPC_CREAT | 0666);
+                                        // semafor sa zadatim kljucem, 1 je broj semafora u nizu, uglavnom treba 1
+                                        // ako vrati < 0 greska
+
+union semun opts;                       // instanca unije, opcioni parametri
+
+opts.val = 1;                           // za mutex ide 1, ovde cemo da postavimo inicijalnu vrednost semafora
+                                        // lockovanje spusta vrednost za 1, unlockovanje podize vrednost za 1
+                                        // ako je semafor 0 i probas da spustis ispod nule, blokirace se proces
+
+semctl(semid, 0, SETVAL, opts);         // semaforu semid, indeks 0 (obicno ima 1 semafor i indeks mu je 0), postavi opts parametre
+                                        // koristi se na pocetku da stavis inicijalnu vrednost semafora
+
+struct sembuf lock = {0, -1, 0};        // struktura koja se koristi za lockovanje, -1 jer smanjuje vrednost
+struct sembuf unlock = {0, 1, 0};       // isto, samo za unlock, prva nula je indeks semafora na koji se odnosi (citaj uvek treba 0)
+
+semop(semid, &lock, 1);                 // zakljucava jednom, moze i unlock umesto lock
+
+semctl(semid, 0, IPC_RMID, 0);          // prva nula je indeks semafora, uglavnom uvek ide 0
+
+// DATOTECNI SISTEM
+
