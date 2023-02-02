@@ -106,3 +106,26 @@ semctl(semid, 0, IPC_RMID, 0);          // prva nula je indeks semafora, uglavno
 
 // DATOTECNI SISTEM
 
+#include <sys/types.h>
+#include <dirent.h>
+
+DIR* dp = opendir("putanja");           // vraca pointer na otvoren direktorijum, ako je NULL, greska
+
+struct dirent* dirp = readdir(dp);      // DIRectorium ENTry, readdir vraca sledeci direktorijum iz dp, NULL ako nema vise
+
+dirp->d_name                            // ime entry-ja, entry je inace direktorijum ili datoteka (ili jos neke nebitne stvari)
+
+#include <sys/stat.h>                   // ukljucuje i stat, sadrzi neke informacije o dir
+
+struct stat statbuf;
+stat(path, &statbuf);                   // cita stat podatke s putanje, ako vrati -1, greska
+
+S_ISDIR(statbuf.st_mode)                // vraca true ako je direktorijum, inace false
+S_ISREG(statbuf.st_mode)                // vraca true ako je regularna datoteka, inace false
+S_ISLNK(statbuf.st_mode)                // vraca true ako je link, inace false
+
+statbuf.st_size                         // velicina u bajtovima
+
+closedir(dp);                           // na kraju zatvori dp
+
+// SRECNO
